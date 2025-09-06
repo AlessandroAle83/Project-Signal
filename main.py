@@ -68,3 +68,26 @@ try:
         time.sleep(SLEEP_SECONDS)
 except KeyboardInterrupt:
     print("⏹️ Bot interrotto.")
+
+def connect_to_sheet():
+    print("🔄 Connessione a Google Sheets in corso...")
+    scopes = ["https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scopes)
+    client = gspread.authorize(creds)
+
+    try:
+        sheet = client.open(SPREADSHEET_NAME)
+        print(f"✅ Foglio trovato: {SPREADSHEET_NAME}")
+    except Exception as e:
+        print(f"❌ Errore apertura foglio: {e}")
+        raise
+
+    try:
+        ws = sheet.worksheet(WORKSHEET_NAME)
+        print(f"✅ Worksheet trovato: {WORKSHEET_NAME}")
+    except gspread.exceptions.WorksheetNotFound:
+        print("⚠️ Worksheet non trovato, ne creo uno nuovo...")
+        ws = sheet.add_worksheet(title=WORKSHEET_NAME, rows="1000", cols="2")
+        ws.append_row(["timestamp", "eur_usd"])
+    return ws
+
