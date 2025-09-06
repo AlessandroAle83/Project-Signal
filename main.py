@@ -1,3 +1,4 @@
+
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -10,7 +11,7 @@ import os
 
 # === CONFIG ===
 URL = "https://www.google.com/finance/quote/EUR-USD?hl=it"
-CREDENTIALS_FILE = "/etc/secrets/progetto-signal-e95160b2462f.json"
+CREDENTIALS_FILE = "/etc/secrets/progetto-signal-e95160b2462f.json"  # Percorso su Render
 SPREADSHEET_NAME = "eur_usd"
 WORKSHEET_NAME = "data"
 SLEEP_SECONDS = 60
@@ -25,7 +26,9 @@ def home():
 def run_flask():
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
 
-# === SCRAPING ===
+Thread(target=run_flask).start()
+
+# === FUNZIONI ===
 def fetch_eur_usd():
     try:
         response = requests.get(URL, headers={"User-Agent": "Mozilla/5.0"})
@@ -38,45 +41,34 @@ def fetch_eur_usd():
         print("❌ Errore scraping:", e)
     return None
 
-# === GOOGLE SHEETS ===
 def connect_to_sheet():
-    print("🔄 Connessione a Google Sheets in corso...")
     scopes = ["https://www.googleapis.com/auth/drive"]
     creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scopes)
     client = gspread.authorize(creds)
-
-    try:
-        sheet = client.open(SPREADSHEET_NAME)
-        print(f"✅ Foglio trovato: {SPREADSHEET_NAME}")
-    except Exception as e:
-        print(f"❌ Errore apertura foglio: {e}")
-        raise
-
+    sheet = client.open(SPREADSHEET_NAME)
     try:
         ws = sheet.worksheet(WORKSHEET_NAME)
-        print(f"✅ Worksheet trovato: {WORKSHEET_NAME}")
     except gspread.exceptions.WorksheetNotFound:
-        print("⚠️ Worksheet non trovato, ne creo uno nuovo...")
         ws = sheet.add_worksheet(title=WORKSHEET_NAME, rows="1000", cols="2")
         ws.append_row(["timestamp", "eur_usd"])
     return ws
 
-# === LOOP DI SCRAPING ===
-def start_scraper():
-    print("🟢 Avvio ciclo scraping EUR/USD...")
-    worksheet = connect_to_sheet()
+def prepend_row(worksheet, row_values):
+    worksheet.insert_row(row_values, index=2)  # Riga 1 è intestazione
 
+# === LOOP ===
+print("🚀 Avvio bot EUR/USD...")
+worksheet = connect_to_sheet()
+
+try:
     while True:
         price = fetch_eur_usd()
         if price:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            worksheet.append_row([timestamp, price])
+            prepend_row(worksheet, [timestamp, price])
             print(f"✅ {timestamp} → {price}")
         else:
             print("⚠️ Prezzo non trovato.")
         time.sleep(SLEEP_SECONDS)
-
-# === AVVIO PARALLELO ===
-print("🚀 Avvio bot EUR/USD su Render...")
-Thread(target=run_flask).start()
-Thread(target=start_scraper).start()
+except KeyboardInterrupt:
+    print("⏹️ Bot interrotto.")
