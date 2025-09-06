@@ -10,7 +10,7 @@ import os
 
 # === CONFIG ===
 URL = "https://www.google.com/finance/quote/EUR-USD?hl=it"
-CREDENTIALS_FILE = "progetto-signal-e95160b2462f.json"  # nome file JSON
+CREDENTIALS_FILE = "/etc/secrets/progetto-signal-e95160b2462f.json"  # PERCORSO AGGIORNATO per Render
 SPREADSHEET_NAME = "eur_usd"
 WORKSHEET_NAME = "data"
 SLEEP_SECONDS = 60
@@ -58,17 +58,13 @@ worksheet = connect_to_sheet()
 
 try:
     while True:
-        # Salta sabato e domenica
-        if datetime.now().weekday() >= 5:
-            print("⏸️ Weekend: nessuna operazione.")
+        price = fetch_eur_usd()
+        if price:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            worksheet.append_row([timestamp, price])
+            print(f"✅ {timestamp} → {price}")
         else:
-            price = fetch_eur_usd()
-            if price:
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                worksheet.append_row([timestamp, price])
-                print(f"✅ {timestamp} → {price}")
-            else:
-                print("⚠️ Prezzo non trovato.")
+            print("⚠️ Prezzo non trovato.")
         time.sleep(SLEEP_SECONDS)
 except KeyboardInterrupt:
     print("⏹️ Bot interrotto.")
